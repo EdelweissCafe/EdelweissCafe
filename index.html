@@ -1,1 +1,200 @@
+<!DOCTYPE html>
+<html lang="el">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Edelweiss Café – Menu</title>
+<style>
+body { font-family: Arial; background:#0f0f0f; color:#fff; margin:0; padding:0; }
+header { text-align:center; padding:20px; }
+h1 { color:#f4d47c; }
+.section { padding:20px; border-bottom:1px solid #333; }
+.item { display:flex; justify-content:space-between; padding:5px 0; }
+.price { color:#f4d47c; font-weight:bold; }
+.tabs { text-align:center; margin:15px 0; }
+.tabs button { background:#222; color:#fff; border:1px solid #444; padding:8px 14px; margin:3px; border-radius:6px; cursor:pointer; }
+#logo { width:140px; cursor:pointer; }
 
+/* Modal admin */
+#adminModal {
+  display:none;
+  position:fixed;
+  top:0; left:0; width:100%; height:100%;
+  background:rgba(0,0,0,0.95);
+  color:#fff;
+  padding:20px;
+  overflow:auto;
+  z-index:1000;
+}
+#adminModal h2 { color:#f4d47c; text-align:center; }
+#adminModal select, #adminModal input { margin:5px; padding:4px; }
+#adminModal table { width:100%; border-collapse:collapse; margin-top:10px; }
+#adminModal th, #adminModal td { border:1px solid #444; padding:6px; }
+#adminModal th { background:#222; color:#f4d47c; }
+#adminModal button { margin:2px; padding:4px; cursor:pointer; background:#444; color:#fff; border:none; border-radius:4px; }
+#closeAdmin { position:absolute; top:10px; right:20px; cursor:pointer; font-size:20px; }
+</style>
+</head>
+<body>
+
+<header>
+<img id="logo" src="logo.png" alt="Edelweiss Logo">
+<h1>EDELWEISS CAFÉ</h1>
+</header>
+
+<div class="tabs">
+<button onclick="showSection('coffee')">Καφέδες</button>
+<button onclick="showSection('beverages')">Ροφήματα</button>
+<button onclick="showSection('juices')">Χυμοί</button>
+<button onclick="showSection('smoothies')">Smoothies</button>
+<button onclick="showSection('softdrinks')">Αναψυκτικά</button>
+<button onclick="showSection('sandwiches')">Σάντουιτς</button>
+<button onclick="showSection('breakfast')">Πρωινά</button>
+<button onclick="showSection('salads')">Σαλάτες</button>
+<button onclick="showSection('fastfood')">Fast Food</button>
+<button onclick="showSection('icecream')">Παγωτά</button>
+</div>
+
+<!-- Admin Modal -->
+<div id="adminModal">
+  <span id="closeAdmin">&times;</span>
+  <h2>Admin Menu</h2>
+  <label>Επιλέξτε ενότητα:</label>
+  <select id="sectionSelect"></select>
+  <button id="resetSectionBtn">Επαναφορά ενότητας</button>
+  <button id="resetAllBtn">Επαναφορά όλου του menu</button>
+  <table id="adminTable">
+    <thead><tr><th>Όνομα</th><th>Τιμή</th><th>Δράσεις</th></tr></thead>
+    <tbody></tbody>
+  </table>
+  <input id="newName" placeholder="Όνομα"> <input id="newPrice" placeholder="Τιμή">
+  <button id="addItemBtn">Προσθήκη</button>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+
+  let logoClicks = 0;
+  const logo = document.getElementById('logo');
+  const adminModal = document.getElementById('adminModal');
+  const sectionSelect = document.getElementById('sectionSelect');
+  const adminTableBody = document.querySelector('#adminTable tbody');
+  const addItemBtn = document.getElementById('addItemBtn');
+  const newNameInput = document.getElementById('newName');
+  const newPriceInput = document.getElementById('newPrice');
+  const resetBtn = document.getElementById('resetSectionBtn');
+  const resetAllBtn = document.getElementById('resetAllBtn');
+
+  // Αρχικά δεδομένα για επαναφορά
+  const defaultMenuData = {
+    coffee: [{name:"Ελληνικός", price:"—"}, {name:"Ελληνικός Διπλός", price:"—"}],
+    beverages: [{name:"Σοκολάτα Ζεστή", price:"—"}],
+    juices: [{name:"Φρέσκος χυμός πορτοκάλι", price:"—"}],
+    smoothies: [{name:"Strawberry Split", price:"—"}],
+    softdrinks: [{name:"Coca Cola", price:"—"}],
+    sandwiches: [
+      {name:"Μπαγκέτα απλή", price:"3.00€"},
+      {name:"Μπαγκέτα κοτόπουλο", price:"4.00€"},
+      {name:"Toast", price:"2.50€"}
+    ],
+    breakfast: [
+      {name:"Κροκ Μαντάμ", price:"8.00€"},
+      {name:"Αγγλικό", price:"13.00€"},
+      {name:"Ελληνικό", price:"10.00€"},
+      {name:"Ομελέτα", price:"6.00€"}
+    ],
+    salads: [
+      {name:"Χωριάτικη", price:"8.00€"},
+      {name:"Ντάκος", price:"8.00€"},
+      {name:"Σίζαρ", price:"8.00€"}
+    ],
+    fastfood: [
+      {name:"Burger", price:"8.00€"},
+      {name:"Chicken nuggets", price:"8.50€"},
+      {name:"Club Sandwich", price:"7.00€"},
+      {name:"Edelweiss Hot Dog", price:"7.00€"},
+      {name:"Pizza Margherita 26cm", price:"8.00€"},
+      {name:"Pizza Margherita 30cm", price:"10.00€"},
+      {name:"Vegetarian Tortillas", price:"4.00€"},
+      {name:"Chicken Tortillas", price:"4.50€"}
+    ],
+    icecream: Array.from({length:10}, (_,i)=>({name:"Γεύση "+(i+1), price:"—"}))
+  };
+
+  let menuData = JSON.parse(localStorage.getItem('menuData')) || JSON.parse(JSON.stringify(defaultMenuData));
+
+  function saveData(){ localStorage.setItem('menuData', JSON.stringify(menuData)); }
+
+  // Κρυφό admin
+  logo.addEventListener('click', () => {
+    logoClicks++;
+    if(logoClicks>=5){
+      logoClicks=0;
+      const code = prompt("Εισάγετε τον κωδικό admin:");
+      if(code==="1234"){ adminModal.style.display='block'; populateSectionSelect(); renderAdmin(); }
+      else alert("Λανθασμένος κωδικός!");
+    }
+  });
+
+  document.getElementById('closeAdmin').addEventListener('click', ()=>{ adminModal.style.display='none'; });
+
+  function populateSectionSelect(){
+    sectionSelect.innerHTML='';
+    Object.keys(menuData).forEach(sec=>{
+      const opt=document.createElement('option'); opt.value=sec; opt.text=sec.toUpperCase(); sectionSelect.appendChild(opt);
+    });
+  }
+
+  function renderAdmin(){
+    const sec = sectionSelect.value;
+    adminTableBody.innerHTML='';
+    menuData[sec].forEach((item,i)=>{
+      const row=document.createElement('tr');
+      row.innerHTML=`<td contenteditable="true" oninput="updateItem('${sec}',${i},'name',this.innerText)">${item.name}</td>
+                     <td contenteditable="true" oninput="updateItem('${sec}',${i},'price',this.innerText)">${item.price}</td>
+                     <td><button onclick="deleteItem('${sec}',${i})">Διαγραφή</button></td>`;
+      adminTableBody.appendChild(row);
+    });
+  }
+
+  sectionSelect.addEventListener('change', renderAdmin);
+
+  window.updateItem = function(sec,i,key,value){ menuData[sec][i][key]=value; saveData(); }
+
+  window.deleteItem = function(sec,i){ menuData[sec].splice(i,1); saveData(); renderAdmin(); }
+
+  addItemBtn.addEventListener('click', ()=>{
+    const sec=sectionSelect.value;
+    const name=newNameInput.value.trim();
+    const price=newPriceInput.value.trim();
+    if(name){ menuData[sec].push({name,price}); saveData(); newNameInput.value=''; newPriceInput.value=''; renderAdmin(); }
+  });
+
+  resetBtn.addEventListener('click', ()=>{
+    const sec=sectionSelect.value;
+    menuData[sec]=JSON.parse(JSON.stringify(defaultMenuData[sec]));
+    saveData();
+    renderAdmin();
+    alert(`Η ενότητα ${sec.toUpperCase()} επαναφέρθηκε.`);
+  });
+
+  resetAllBtn.addEventListener('click', ()=>{
+    menuData = JSON.parse(JSON.stringify(defaultMenuData));
+    saveData();
+    renderAdmin();
+    alert("Όλο το menu επαναφέρθηκε στην αρχική του μορφή.");
+  });
+
+  window.showSection = function(id){
+    document.querySelectorAll('.section').forEach(s=>s.style.display='none');
+    let sec = document.getElementById(id);
+    if(!sec){ sec=document.createElement('div'); sec.className='section'; sec.id=id; document.body.appendChild(sec); }
+    sec.innerHTML = `<h2>${id.toUpperCase()}</h2>`+menuData[id].map(item=>`<div class="item"><span>${item.name}</span><span class="price">${item.price}</span></div>`).join('');
+    sec.style.display='block';
+  }
+
+  showSection('coffee');
+});
+</script>
+</body>
+</html>
